@@ -162,12 +162,13 @@ if 'uploaded_content' not in st.session_state:
 # 複数ファイルアップロード
 uploaded_files = st.file_uploader(
     "参考資料（複数ファイル対応）",
-    type=['csv', 'txt', 'pdf', 'docx', 'jpg', 'jpeg', 'png'],
+    type=['txt', 'pdf', 'docx', 'csv', 'jpg', 'jpeg', 'png'],
     accept_multiple_files=True,
-    help="CSVファイル"、"テキストファイル、PDF、Word、画像ファイルに対応。複数選択可能"
+    help="テキストファイル、CSV、PDF、Word、画像ファイルに対応。複数選択可能"
 )
 
 # アップロードされたファイルを処理
+# ファイル処理部分にCSVの処理を追加
 if uploaded_files:
     for uploaded_file in uploaded_files:
         file_key = uploaded_file.name
@@ -176,7 +177,7 @@ if uploaded_files:
                 file_type = uploaded_file.type
                 
                 if file_type == "text/plain":
-                    # テキストファイルの場合
+                    # テキストファイルの場合（既存）
                     content = str(uploaded_file.read(), "utf-8")
                     st.session_state.uploaded_files[file_key] = {
                         'type': 'text',
@@ -184,12 +185,37 @@ if uploaded_files:
                         'file_object': None
                     }
                     st.session_state.uploaded_content += f"\n\n=== {file_key} ===\n{content}"
+                
+                elif file_type == "text/csv" or file_key.endswith('.csv'):
+                    # CSVファイルの場合（新規追加）
+                    df = pd.read_csv(uploaded_file)
+                    
+                    # CSVの基本情報を作成
+                    csv_info = f"""
+=== CSVファイル: {file_key} ===
+行数: {len(df)}行
+列数: {len(df.columns)}列
+列名: {', '.join(df.columns)}
+
+データの最初の5行:
+{df.head().to_string()}
+
+データの基本統計:
+{df.describe().to_string()}
+"""
+                    
+                    st.session_state.uploaded_files[file_key] = {
+                        'type': 'csv',
+                        'content': csv_info,
+                        'dataframe': df,
+                        'file_object': None
+                    }
+                    st.session_state.uploaded_content += csv_info
                     
                 elif file_type in ["image/jpeg", "image/jpg", "image/png"]:
-                    # 画像ファイルの場合
-                    # ファイルのコピーを作成（複数回読み込み対応）
+                    # 画像ファイルの場合（既存）
                     file_bytes = uploaded_file.read()
-                    uploaded_file.seek(0)  # ポインタをリセット
+                    uploaded_file.seek(0)
                     
                     st.session_state.uploaded_files[file_key] = {
                         'type': 'image',
@@ -199,7 +225,7 @@ if uploaded_files:
                     }
                     
                 else:
-                    # その他のファイル
+                    # その他のファイル（既存）
                     st.session_state.uploaded_files[file_key] = {
                         'type': 'other',
                         'content': f"[ファイル: {file_key}]",
@@ -225,6 +251,21 @@ if st.session_state.uploaded_files:
     # ファイル一覧表示
     for file_key, file_info in st.session_state.uploaded_files.items():
         with st.expander(f"📎 {file_key} ({file_info['type']})"):
+        
+            if file_info['type'] == 'csv':
+                # CSVの場合は特別な表示
+                df = file_info['dataframe']
+                st.write(f"**データ概要**: {len(df)}行 × {len(df.columns)}列")
+                st.write(f"**列名**: {', '.join(df.columns)}")
+            
+                # データのプレビュー
+                st.write("**データプレビュー（最初の5行）**:")
+                st.dataframe(df.head())
+            
+            # 基本統計
+            if len(df.select_dtypes(include=[np.number]).columns) > 0:
+                st.write("**基本統計**:")
+                st.dataframe(df.describe())
             
             if file_info['type'] == 'image':
                 # 画像の場合は表示
