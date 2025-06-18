@@ -262,6 +262,7 @@ st.header("💬 AI に相談・質問")
 question_type = st.selectbox(
     "相談の種類を選んでください",
     [
+        "データ分析・統計", 
         "一般的な質問",
         "観光プラン作成",
         "数学の問題解決",
@@ -394,6 +395,17 @@ def create_enhanced_prompt(question_type, user_question, uploaded_files, questio
 - 提供された参考資料の詳細情報を活用した提案
 
 """
+    elif question_type == "データ分析・統計":
+        base_prompt += """データ分析の専門家として、以下の点を含めて回答してください：
+- データの概要と特徴の説明
+- 統計的な分析結果（平均、分散、相関など）
+- データから読み取れる傾向やパターン
+- グラフや可視化の提案
+- データの解釈と考察
+- 注意すべき点や限界
+
+"""
+
     
     elif question_type == "数学の問題解決":
         base_prompt += """数学の専門家として、以下の点を含めて回答してください：
