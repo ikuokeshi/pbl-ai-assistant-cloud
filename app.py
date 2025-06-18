@@ -189,22 +189,27 @@ if uploaded_files:
                     st.session_state.uploaded_content += f"\n\n=== {file_key} ===\n{content}"
                 
                 elif file_type == "text/csv" or file_key.endswith('.csv'):
-                    # CSVファイルの場合（新規追加）
+                # CSVファイルの場合（AI理解強化版）
                     df = pd.read_csv(uploaded_file)
-                    
-                    # CSVの基本情報を作成
+    
+                    # より詳細で分析しやすい形式で情報を作成
                     csv_info = f"""
-=== CSVファイル: {file_key} ===
-行数: {len(df)}行
-列数: {len(df.columns)}列
-列名: {', '.join(df.columns)}
+                === CSVファイル: {file_key} ===
 
-データの最初の5行:
-{df.head().to_string()}
+                【データ概要】
+                - 行数: {len(df)}行のデータ
+                - 列数: {len(df.columns)}列
+                - 列名: {', '.join(df.columns)}
 
-データの基本統計:
-{df.describe().to_string()}
-"""
+                【実際のデータ内容】
+                {df.to_string(index=False)}
+
+                【数値データの統計情報】
+                {df.describe().to_string()}
+
+                このデータを詳細に分析してください。各数値について具体的に言及し、
+                傾向やパターンを特定してください。
+                """
                     
                     st.session_state.uploaded_files[file_key] = {
                         'type': 'csv',
@@ -478,20 +483,25 @@ def create_enhanced_prompt(question_type, user_question, uploaded_files, questio
             # テキスト内の画像参照を抽出
             image_refs = extract_image_references_from_text(file_info['content'])
             all_image_references.update(image_refs)
+            
+        elif file_info['type'] == 'csv':
+            # CSVデータを明確にプロンプトに含める
+            text_content += f"\n\n=== CSVデータ分析: {filename} ===\n{file_info['content']}"
     
     if text_content:
         base_prompt += f"""
 参考資料：
 {text_content}
 
-上記の参考資料の情報を積極的に活用して、詳細で具体的な回答をしてください。
-特に、スポット名や施設名が言及されている場合は、その詳細情報を含めて回答してください。
+上記のデータを使用して、具体的な数値と統計情報を基に詳細な分析を行ってください。
 """
     
     # ユーザーの質問を追加
     base_prompt += f"""
 ユーザーの質問：
 {user_question}
+
+提供されたデータの数値を具体的に引用して分析してください。
 """
     
     return base_prompt, all_image_references
