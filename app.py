@@ -162,9 +162,9 @@ if 'uploaded_content' not in st.session_state:
 # 複数ファイルアップロード
 uploaded_files = st.file_uploader(
     "参考資料（複数ファイル対応）",
-    type=['txt', 'pdf', 'docx', 'jpg', 'jpeg', 'png'],
+    type=['csv', 'txt', 'pdf', 'docx', 'jpg', 'jpeg', 'png'],
     accept_multiple_files=True,
-    help="テキストファイル、PDF、Word、画像ファイルに対応。複数選択可能"
+    help="CSVファイル"、"テキストファイル、PDF、Word、画像ファイルに対応。複数選択可能"
 )
 
 # アップロードされたファイルを処理
