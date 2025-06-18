@@ -7,6 +7,8 @@ from dotenv import load_dotenv
 import base64
 from PIL import Image
 import hashlib
+import pandas as pd
+import numpy as np  # 統計処理用
 
 # 環境変数を読み込み（.envファイルがある場合）
 load_dotenv()
