@@ -48,6 +48,99 @@ def safe_key(text):
     """文字列から安全なStreamlit keyを生成"""
     return hashlib.md5(text.encode()).hexdigest()[:8]
 
+# ================================================
+# プロンプト改善コーチング機能
+# ================================================
+def evaluate_prompt_quality(prompt):
+    """プロンプトの品質を評価（0-100点）- 改善版"""
+    score = 30  # 基本点
+    
+    # 長さチェック（より詳細）
+    words = prompt.split()
+    if len(words) >= 8:
+        score += 10
+    if len(words) >= 15:
+        score += 10
+    if len(words) >= 25:
+        score += 5
+    
+    # 具体性チェック（より幅広く）
+    analysis_words = ['分析', '比較', '傾向', '相関', '予測', '特徴', '要因', '関係', '変動', 'パターン']
+    if any(word in prompt for word in analysis_words):
+        score += 15
+    
+    # 質問の明確性（「どのように」などがなくても、詳細な指示があれば評価）
+    deep_words = ['なぜ', 'どのように', 'いつ', 'どこで', 'なに', 'どんな', 'どの程度']
+    if any(word in prompt for word in deep_words):
+        score += 10
+    
+    # データへの言及
+    if any(word in prompt for word in ['データ', 'CSV', 'ファイル', '情報']):
+        score += 10
+    
+    # 出力形式の指定（より柔軟に）
+    format_words = ['3つ', '4つ', '5つ', 'ポイント', 'ランキング', 'グラフ', '表', '観点', '項目']
+    if any(word in prompt for word in format_words):
+        score += 10
+    
+    # 具体的な指標への言及
+    metric_words = ['平均', '最大', '最小', '標準偏差', '変動', '範囲', '数値']
+    if any(word in prompt for word in metric_words):
+        score += 10
+    
+    # 詳細な説明要求
+    detail_words = ['詳しく', '具体的', '詳細', '根拠', '理由']
+    if any(word in prompt for word in detail_words):
+        score += 5
+    
+    return min(score, 100)
+
+def suggest_prompt_improvements(prompt, score):
+    """プロンプト改善提案を生成 - 改善版"""
+    suggestions = []
+    
+    if score < 60:
+        suggestions.append("🎯 **構造化**: 「以下の3つの観点で分析してください：1. ○○ 2. ○○ 3. ○○」")
+    
+    if not any(word in prompt for word in ['3つ', '4つ', '5つ', 'ポイント', '観点']):
+        suggestions.append("📊 **形式指定**: 「3つのポイントで」「4つの観点で」など具体的な構造を指定")
+    
+    if not any(word in prompt for word in ['なぜ', 'どのように', '要因', '理由']):
+        suggestions.append("❓ **深い分析**: 「なぜそうなるのか」「どのような要因で」など原因分析を追加")
+    
+    if not any(word in prompt for word in ['提案', 'アドバイス', '洞察', '示唆']):
+        suggestions.append("💡 **実用性**: 「実用的な洞察も提案してください」を追加")
+    
+    if '。' not in prompt or prompt.count('。') < 2:
+        suggestions.append("📝 **文章構造**: 複数の文に分けて、より詳細な指示を記述")
+    
+    return suggestions
+
+def show_prompt_coaching(prompt, question_type):
+    """プロンプトコーチング表示（データ分析専用）"""
+    # データ分析・統計の場合のみコーチング機能を表示
+    if question_type == "データ分析・統計" and prompt.strip():
+        score = evaluate_prompt_quality(prompt)
+        
+        # スコア表示
+        col1, col2 = st.columns([1, 3])
+        with col1:
+            if score >= 80:
+                st.success(f"🎉 プロンプト品質: {score}点")
+            elif score >= 60:
+                st.info(f"👍 プロンプト品質: {score}点")
+            else:
+                st.warning(f"💡 プロンプト品質: {score}点")
+        
+        with col2:
+            if score < 70:
+                suggestions = suggest_prompt_improvements(prompt, score)
+                if suggestions:
+                    with st.expander("💡 データ分析のプロンプト改善ヒント"):
+                        for suggestion in suggestions:
+                            st.write(suggestion)
+    # データ分析・統計以外では何も表示しない
+
 def load_azure_config():
     """Azure OpenAI設定を読み込む（Cloud対応版）"""
     config = {}
@@ -131,6 +224,43 @@ else:
         help="通常は最新版で問題ありません"
     )
 
+# サイドバーの学習ガイド部分を修正
+st.sidebar.markdown("---")
+
+# データ分析・統計選択時のみ学習ガイドを表示
+current_question_type = st.session_state.get('current_question_type', '')
+if current_question_type == "データ分析・統計":
+    st.sidebar.header("🎓 データ分析学習ガイド")
+    
+    # セッション状態で分析回数を記録
+    if 'analysis_count' not in st.session_state:
+        st.session_state.analysis_count = 0
+    
+    # デバッグ表示を削除
+    # st.sidebar.write(f"**デバッグ**: 分析回数 = {st.session_state.analysis_count}")
+    
+    # 学習レベル表示
+    level = min(st.session_state.analysis_count // 2 + 1, 5)
+    progress = (st.session_state.analysis_count % 2) / 2.0 if level < 5 else 1.0
+    st.sidebar.write(f"**現在のレベル**: {level}/5")
+    st.sidebar.progress(progress)
+    
+    # レベル別ガイド
+    level_guide = {
+        1: "🌱 初心者: 基本的なデータ分析を体験",
+        2: "🌿 初級: 具体的な質問でより詳しい分析", 
+        3: "🌳 中級: 複数の観点から多角的分析",
+        4: "🌲 上級: 予測や提案を含む高度な分析",
+        5: "🏆 エキスパート: データサイエンティストレベル"
+    }
+    
+    st.sidebar.info(level_guide[level])
+
+else:
+    # データ分析・統計以外の場合は一般的なガイドを表示
+    st.sidebar.header("💡 AI活用ガイド")
+    st.sidebar.info("選択した分野に応じて、具体的で明確な質問をしてください。")
+    
 # ================================================
 # 5. Azure OpenAI クライアントの初期化
 # ================================================
@@ -270,9 +400,19 @@ if st.session_state.uploaded_files:
                 st.dataframe(df.head())
             
             # 基本統計
-            if len(df.select_dtypes(include=[np.number]).columns) > 0:
-                st.write("**基本統計**:")
-                st.dataframe(df.describe())
+            elif file_info['type'] == 'csv':
+                df = file_info['dataframe']
+                st.write(f"**データ概要**: {len(df)}行 × {len(df.columns)}列")
+                st.write(f"**列名**: {', '.join(df.columns)}")
+    
+                # データのプレビュー
+                st.write("**データプレビュー（最初の5行）**:")
+                st.dataframe(df.head())
+    
+                # 基本統計（CSVの場合のみ）
+                if len(df.select_dtypes(include=[np.number]).columns) > 0:
+                    st.write("**基本統計**:")
+                    st.dataframe(df.describe())
             
             if file_info['type'] == 'image':
                 # 画像の場合は表示
@@ -306,11 +446,11 @@ if st.session_state.uploaded_files:
 # ================================================
 st.header("💬 AI に相談・質問")
 
-# 質問の種類を選択（各チームがカスタマイズ可能）
+# 質問の種類を選択
 question_type = st.selectbox(
-    "相談の種類を選んでください",
+    "分析の種類を選んでください",
     [
-        "データ分析・統計", 
+        "データ分析・統計",
         "一般的な質問",
         "観光プラン作成",
         "数学の問題解決",
@@ -319,6 +459,15 @@ question_type = st.selectbox(
     ]
 )
 
+# セッション状態に保存
+st.session_state.current_question_type = question_type
+
+# デバッグ表示を削除
+# st.write(f"🔧 選択中: {question_type}")
+# st.write(f"🔧 保存確認: {st.session_state.get('current_question_type', '保存失敗')}")
+
+
+
 # 質問入力エリア
 col1, col2 = st.columns([3, 1])
 
@@ -326,9 +475,28 @@ with col1:
     # ユーザーの質問を入力
     user_question = st.text_area(
         "質問や相談内容を入力してください",
-        placeholder="例：東尋坊の写真を見て福井県の2泊3日の観光プランを作って",
+        placeholder="例：このCSVデータから売上の季節的傾向を分析し、来月の予測を3つのシナリオで提示してください",
         height=100
     )
+    
+    # プロンプトコーチング機能（データ分析専用）
+    show_prompt_coaching(user_question, question_type)
+
+# データ分析の場合のみ効果的な質問例を表示
+if question_type == "データ分析・統計":
+    if st.checkbox("💡 データ分析での効果的な質問例を見る"):
+        st.info("""
+        **🎯 データ分析での効果的な質問例:**
+        
+        ❌ 悪い例: 「データを分析して」
+        ✅ 良い例: 「この売上データから季節による傾向を分析し、来月の予測を3つのシナリオで教えて」
+        
+        ❌ 悪い例: 「何か分かることある？」  
+        ✅ 良い例: 「このスポーツデータから、パフォーマンス向上のための改善点を数値根拠とともに5つ提案して」
+        
+        ❌ 悪い例: 「グラフにして」
+        ✅ 良い例: 「この気温データから異常な日を特定し、その要因を数値で分析して具体的な理由を教えて」
+        """)
 
 with col2:
     # 質問に添付する画像
@@ -592,7 +760,8 @@ with col2:
                         'ai_response': ai_response,
                         'image_references': image_references,
                         'question_image': question_image,
-                        'prompt': prompt
+                        'prompt': prompt,
+                        'counted': False  # ← カウント済みフラグを追加
                     }
                 
                 # 処理完了フラグ
@@ -669,6 +838,14 @@ if st.session_state.ai_response_data is not None:
             st.info("💡 AI回答でテキスト内の画像参照スポットが言及されませんでした。")
     
     # =================================================
+    # 分析回数カウント（データ分析・統計のみ）
+    # =================================================
+    current_question_type = st.session_state.get('current_question_type', '')
+    if current_question_type == "データ分析・統計":
+        st.session_state.analysis_count += 1
+        # デバッグ表示は削除
+
+    # =================================================
     # デバッグ情報
     # =================================================
     with st.expander("🔍 詳細情報（デバッグ用）"):
@@ -689,78 +866,8 @@ if st.session_state.ai_response_data is not None:
     if st.button("🔄 新しい質問をする", key="clear_response"):
         st.session_state.ai_response_data = None
         st.rerun()
-        # 入力チェック
-        if not user_question.strip():
-            st.error("質問を入力してください")
-        elif not azure_endpoint or not api_key:
-            st.error("サイドバーでAzure OpenAIの設定を入力してください")
-        else:
-            # Azure OpenAI クライアントを作成
-            client = create_azure_client()
-            
-            if client:
-                # プロンプトを作成（画像参照情報も取得）
-                prompt, image_references = create_enhanced_prompt(
-                    question_type, user_question, st.session_state.uploaded_files, question_image
-                )
-                
-                # AI応答を生成（ローディング表示付き）
-                with st.spinner("🤔 AIが考えています..."):
-                    ai_response = get_ai_response_enhanced(
-                        client, prompt, deployment_name, question_image
-                    )
-                
-                # 応答を表示
-                st.markdown("---")
-                st.header("🤖 AIからの回答")
-                st.markdown(ai_response)
-                
-                # AI回答で言及されたスポットの画像を表示
-                if image_references:
-                    mentioned_spots = find_mentioned_spots_in_response(ai_response, image_references)
-                    
-                    if mentioned_spots:
-                        st.subheader("📷 回答で言及されたスポットの画像")
-                        
-                        # 画像を表示
-                        cols = st.columns(min(len(mentioned_spots), 3))
-                        for i, spot_info in enumerate(mentioned_spots):
-                            spot_name = spot_info['spot_name']
-                            filename = spot_info['filename']
-                            
-                            # アップロードされたファイルから画像を取得
-                            if filename in st.session_state.uploaded_files:
-                                file_info = st.session_state.uploaded_files[filename]
-                                if file_info['type'] == 'image':
-                                    with cols[i % 3]:
-                                        image = Image.open(io.BytesIO(file_info['file_bytes']))
-                                        st.image(image, caption=f"{spot_name}", use_container_width=True)
-                                        st.caption(f"📁 {filename}")
-                        
-                        # 言及されたスポット一覧
-                        spot_names = [spot['spot_name'] for spot in mentioned_spots]
-                        st.info(f"🎯 **{len(mentioned_spots)}箇所のスポット**が回答で言及され、対応する画像を表示しました")
-                        st.success(f"📍 言及されたスポット: {', '.join(spot_names)}")
-                
-                # 質問に添付された画像も表示
-                if question_image is not None:
-                    st.subheader("📷 質問に添付された画像")
-                    image = Image.open(question_image)
-                    st.image(image, caption=question_image.name, width=300)
-                
-                # プロンプトの確認（デバッグ用）
-                with st.expander("🔍 送信したプロンプトを確認（デバッグ用）"):
-                    st.text(prompt)
-                    if question_image:
-                        st.info("📷 質問に画像が添付されました")
-                    if image_references:
-                        st.info(f"📁 テキスト内で参照可能な画像: {len(image_references)}枚")
-                        for spot, filename in image_references.items():
-                            st.text(f"  • {spot} → {filename}")
 
-# ================================================
-# 11. 使用上の注意とヒント
-# ================================================
+
 # ================================================
 # 11. 使用上の注意とヒント
 # ================================================
