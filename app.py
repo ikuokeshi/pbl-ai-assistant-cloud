@@ -705,7 +705,7 @@ def get_ai_response_enhanced(client, prompt, deployment_name, question_image=Non
                 }
             ],
             temperature=0.7,
-            max_tokens=1500
+            max_tokens=3000
         )
         
         return response.choices[0].message.content
