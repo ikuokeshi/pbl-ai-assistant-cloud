@@ -51,7 +51,7 @@ def safe_key(text):
 # ================================================
 # プロンプト改善コーチング機能
 # ================================================
-def evaluate_prompt_quality(prompt):
+#def evaluate_prompt_quality(prompt):
     """プロンプトの品質を評価（0-100点）- 改善版"""
     score = 30  # 基本点
     
@@ -95,7 +95,32 @@ def evaluate_prompt_quality(prompt):
     
     return min(score, 100)
 
-def suggest_prompt_improvements(prompt, score):
+# ================================================
+# 教育価値重視のプロンプト評価システム
+# ================================================
+def evaluate_educational_value(prompt):
+    """教育的価値を重視した評価"""
+    score = 40  # 基本点
+    
+    # 思考深度の評価
+    if any(word in prompt for word in ['なぜ', '理由', '要因', '背景', 'どのような']):
+        score += 20  # 因果関係を考える
+    
+    # 批判的思考の評価  
+    if any(word in prompt for word in ['適切', '妥当', '問題', '課題', '改善', '判断']):
+        score += 15  # 判断・評価を求める
+    
+    # 応用・提案の評価
+    if any(word in prompt for word in ['提案', '戦略', '対策', 'アドバイス', '改善案', '活用']):
+        score += 15  # 実用的思考を促す
+    
+    # 多角的視点の評価
+    if any(word in prompt for word in ['比較', '関係', '影響', '違い', 'パターン', '傾向']):
+        score += 10  # 複数の観点から分析
+    
+    return min(score, 100)
+
+#def suggest_prompt_improvements(prompt, score):
     """プロンプト改善提案を生成 - 改善版"""
     suggestions = []
     
@@ -116,27 +141,49 @@ def suggest_prompt_improvements(prompt, score):
     
     return suggestions
 
+def suggest_educational_improvements(prompt, score):
+    """教育的価値を重視した改善提案"""
+    suggestions = []
+    
+    if score < 50:
+        suggestions.append("🤔 **思考のきっかけ**: 「なぜ」「どのような理由で」を追加してみましょう")
+    
+    if not any(word in prompt for word in ['なぜ', '理由', '要因', '背景']):
+        suggestions.append("❓ **因果関係**: 「なぜそうなるのか」を考えさせる質問にしてみましょう")
+    
+    if not any(word in prompt for word in ['提案', '改善', '戦略', 'アドバイス']):
+        suggestions.append("🚀 **実用的思考**: 「具体的な改善策」や「活用方法」を求めてみましょう")
+    
+    if not any(word in prompt for word in ['適切', '妥当', '問題', '課題']):
+        suggestions.append("🔍 **批判的思考**: 「適切かどうか判断」や「問題点の指摘」を求めてみましょう")
+    
+    if not any(word in prompt for word in ['比較', '関係', '影響', 'パターン']):
+        suggestions.append("📊 **多角的分析**: 「他との比較」や「関係性の分析」を追加してみましょう")
+    
+    return suggestions
+
 def show_prompt_coaching(prompt, question_type):
-    """プロンプトコーチング表示（データ分析専用）"""
+    """プロンプトコーチング表示（データ分析専用・教育価値重視）"""
     # データ分析・統計の場合のみコーチング機能を表示
     if question_type == "データ分析・統計" and prompt.strip():
-        score = evaluate_prompt_quality(prompt)
+        score = evaluate_educational_value(prompt)
         
         # スコア表示
         col1, col2 = st.columns([1, 3])
         with col1:
             if score >= 80:
-                st.success(f"🎉 プロンプト品質: {score}点")
-            elif score >= 60:
-                st.info(f"👍 プロンプト品質: {score}点")
+                st.success(f"🎉 思考レベル: {score}点")
+            elif score >= 65:
+                st.info(f"👍 思考レベル: {score}点")
             else:
-                st.warning(f"💡 プロンプト品質: {score}点")
+                st.warning(f"💡 思考レベル: {score}点")
         
         with col2:
             if score < 70:
-                suggestions = suggest_prompt_improvements(prompt, score)
+                suggestions = suggest_educational_improvements(prompt, score)
                 if suggestions:
-                    with st.expander("💡 データ分析のプロンプト改善ヒント"):
+                    with st.expander("💡 さらに深く考えるヒント"):
+                        st.info("良い質問の出発点です！さらに学習効果を高めるために：")
                         for suggestion in suggestions:
                             st.write(suggestion)
     # データ分析・統計以外では何も表示しない
@@ -303,6 +350,15 @@ uploaded_files = st.file_uploader(
 # ファイル処理部分にCSVの処理を追加
 if uploaded_files:
     for uploaded_file in uploaded_files:
+        # 修正2: ファイルサイズ制限
+        MAX_FILE_SIZE = 100 * 1024  # 100KB制限
+        
+        if uploaded_file.size > MAX_FILE_SIZE:
+            st.error(f"❌ ファイル '{uploaded_file.name}' が大きすぎます")
+            st.error(f"制限: {MAX_FILE_SIZE/1024:.0f}KB以下（現在: {uploaded_file.size/1024:.1f}KB）")
+            continue
+        
+        # 既存のコード（変更なし）
         file_key = uploaded_file.name
         if file_key not in st.session_state.uploaded_files:
             try:
@@ -319,10 +375,19 @@ if uploaded_files:
                     st.session_state.uploaded_content += f"\n\n=== {file_key} ===\n{content}"
                 
                 elif file_type == "text/csv" or file_key.endswith('.csv'):
-                # CSVファイルの場合（AI理解強化版）
+                    # CSVファイルの場合（安全制限版）
                     df = pd.read_csv(uploaded_file)
     
-                    # より詳細で分析しやすい形式で情報を作成
+                     # 授業用安全制限
+                    MAX_ROWS = 100  # 授業用の厳格な制限
+    
+                    if len(df) > MAX_ROWS:
+                        st.error(f"❌ CSVファイルが大きすぎます（{len(df)}行）")
+                        st.error(f"教育用制限: 最大{MAX_ROWS}行まで対応しています")
+                        st.info("💡 データを分割するか、より小さなサンプルをご利用ください")
+                        continue  # ファイル処理をスキップ
+    
+                    # 制限内の場合のみ処理
                     csv_info = f"""
                 === CSVファイル: {file_key} ===
 
@@ -336,11 +401,8 @@ if uploaded_files:
 
                 【数値データの統計情報】
                 {df.describe().to_string()}
-
-                このデータを詳細に分析してください。各数値について具体的に言及し、
-                傾向やパターンを特定してください。
                 """
-                    
+    
                     st.session_state.uploaded_files[file_key] = {
                         'type': 'csv',
                         'content': csv_info,
